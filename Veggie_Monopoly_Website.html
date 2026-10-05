@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Veggie Monopoly</title>
+<style>
+:root{--pink:#e83d78;--purple:#7b4bb7;--bg:#f5f0fb;--ink:#29243a;--green:#43a96b}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+header{background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;padding:14px 12px;text-align:center;position:sticky;top:0;z-index:5}
+h1{margin:0;font-size:25px}.tag{font-size:12px;opacity:.95;margin-top:3px}
+.wrap{max-width:1050px;margin:auto;padding:10px}
+.panel{background:#fff;border-radius:16px;padding:10px;box-shadow:0 3px 12px #00000012;margin-bottom:10px}
+.row{display:flex;gap:7px;align-items:center;justify-content:center;flex-wrap:wrap}
+button,select{font:inherit;border:0;border-radius:11px;padding:10px 13px;font-weight:800}
+button{cursor:pointer}.pink{background:var(--pink);color:#fff}.blue{background:#4c73d8;color:#fff}.green{background:var(--green);color:#fff}.yellow{background:#f2b72d;color:#2a2200}.gray{background:#ece8f2}
+#status{text-align:center;font-weight:800;color:var(--purple);min-height:22px}
+#board{display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(7,1fr);gap:3px;background:#5c4773;padding:4px;border-radius:18px;max-width:760px;margin:10px auto;aspect-ratio:1}
+.tile{background:#fff8fc;border-radius:8px;position:relative;padding:4px;display:flex;flex-direction:column;justify-content:space-between;text-align:center;overflow:hidden;min-width:0}
+.tile .emoji{font-size:clamp(14px,3.4vw,28px);line-height:1}.tile .nm{font-size:clamp(6px,1.6vw,12px);font-weight:900;line-height:1.05}.tile .pr{font-size:clamp(5px,1.3vw,9px);color:#777}
+.tile.special{background:#fff0c5}.tile.quiz{background:#dff4ff}.tile.free{background:#e2f7e8}.tile.start{background:#ffdce8}
+.tokens{min-height:17px;font-size:12px;line-height:1}
+.center{grid-column:2/7;grid-row:2/7;background:linear-gradient(135deg,#ffe1ec,#e9e0ff);border-radius:15px;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px}
+.center h2{margin:2px;color:#762e68;font-size:clamp(17px,5vw,32px)}.center p{font-size:clamp(8px,2vw,13px);margin:4px}
+.players{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:7px}
+.player{background:#fff;border-radius:12px;padding:9px;border-left:7px solid #777;box-shadow:0 2px 7px #0001}.player.active{outline:3px solid var(--pink)}
+.small{font-size:11px;color:#666}.log{background:#28243a;color:#fff;border-radius:10px;padding:9px;max-height:150px;overflow:auto;font-size:12px}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;padding:14px;z-index:20}.modal.show{display:flex}
+.card{background:#fff;border-radius:18px;padding:20px;max-width:500px;width:100%;text-align:center;box-shadow:0 15px 50px #0006}.card h2{color:var(--purple);margin:0 0 8px}.ans{display:block;width:100%;margin:7px 0;background:#f0ebf7;text-align:left}.ans:active{transform:scale(.98)}.correct{background:#bdeecb!important}.wrong{background:#ffc7c7!important}
+#dice{font-size:42px;min-width:74px;text-align:center}
+@media(max-width:500px){header{padding:10px}h1{font-size:21px}.wrap{padding:7px}.panel{padding:8px}.row button{padding:9px 10px}.player{padding:7px}}
+</style>
+</head>
+<body>
+<header><h1>🥕 VEGGIE MONOPOLY 🥦</h1><div class="tag">English Vegetable Vocabulary Game</div></header>
+<div class="wrap">
+  <div class="panel">
+    <div class="row">
+      <label>Players <select id="num"><option>2</option><option selected>3</option><option>4</option></select></label>
+      <button class="pink" onclick="newGame()">New Game</button>
+      <button class="blue" onclick="rules()">How to Play</button>
+      <button class="green" onclick="sayWord()">🔊 Vocabulary</button>
+    </div>
+  </div>
+  <div id="status">Press New Game to start.</div>
+  <div id="board"></div>
+  <div class="panel">
+    <div class="row">
+      <div id="dice">🎲</div>
+      <button class="yellow" onclick="roll()">ROLL DICE</button>
+      <button class="blue" onclick="nextTurn()">NEXT TURN</button>
+    </div>
+  </div>
+  <div id="players" class="players"></div>
+  <div class="panel"><b>Game Log</b><div id="log" class="log"></div></div>
+</div>
+
+<div id="modal" class="modal"><div class="card" id="card"></div></div>
+
+<script>
+const S=[
+["START","🚩",0,"start"],["Carrots","🥕",80,""],["QUIZ","❓",0,"quiz"],["Potatoes","🥔",80,""],
+["Spinach","🥬",90,""],["CHANCE","🎴",0,"special"],["Eggplants","🍆",100,""],["FREE VEGGIE","🌱",0,"free"],
+["Snake Beans","🫛",100,""],["Bitter Melons","🥒",110,""],["Cauliflower","🥦",120,""],["QUIZ","❓",0,"quiz"],
+["Broccoli","🥦",120,""],["Water Spinach","🌿",130,""],["Peas","🫛",130,""],["CHANCE","🎴",0,"special"],
+["Veggie Market","🛒",150,""],["Spinach Garden","🌱",140,""],["QUIZ","❓",0,"quiz"],["Carrot Farm","🥕",140,""],
+["Potato Farm","🥔",150,""],["FREE VEGGIE","🌱",0,"free"],["Bitter Melon Farm","🥒",160,""],["CHANCE","🎴",0,"special"],
+["Broccoli Farm","🥦",170,""],["Snake Bean Farm","🫛",160,""],["QUIZ","❓",0,"quiz"],["Pea Garden","🫛",170,""]
+];
+const Q=[
+["Which vegetable is orange?",["Carrots","Potatoes","Spinach","Eggplants"],0],
+["Which vegetable is purple?",["Broccoli","Eggplants","Peas","Cauliflower"],1],
+["What is 'wortel' in English?",["Carrots","Peas","Potatoes","Spinach"],0],
+["What is 'kentang' in English?",["Potatoes","Carrots","Spinach","Broccoli"],0],
+["What is 'terong' in English?",["Eggplants","Cauliflower","Peas","Potatoes"],0],
+["What is 'kangkung' in English?",["Spinach","Water Spinach","Broccoli","Snake Beans"],1],
+["What is 'pare' in English?",["Bitter Melons","Snake Beans","Potatoes","Carrots"],0],
+["Which vegetable is usually white?",["Cauliflower","Carrots","Eggplants","Peas"],0],
+["Which vegetable is a small green seed?",["Peas","Potatoes","Carrots","Eggplants"],0],
+["Which vegetable is long and green?",["Snake Beans","Cauliflower","Potatoes","Eggplants"],0],
+["Complete: I like _____. (orange vegetable)",["Carrots","Spinach","Peas","Eggplants"],0]
+];
+const colors=["#e83d78","#4c73d8","#43a96b","#f0a62b"];
+let P=[],pos=[],owner={},turn=0,busy=false,started=false,lastRoll=0;
+
+function build(){
+ const b=document.getElementById("board");b.innerHTML="";
+ for(let r=0;r<7;r++)for(let c=0;c<7;c++){
+   let inside=r>0&&r<6&&c>0&&c<6;
+   if(inside){
+     if(r===1&&c===1)b.insertAdjacentHTML("beforeend",`<div class="center"><div><h2>🥕 VEGGIE<br>MONOPOLY</h2><p>Roll • Move • Speak • Answer • Buy!</p><p>Use the English vegetable words.</p></div></div>`);
+     continue;
+   }
+   let idx;if(r===0)idx=c;else if(c===6)idx=6+r;else if(r===6)idx=20+(6-c);else idx=27+(6-r);
+   let s=S[idx];let cls="tile "+s[3];
+   b.insertAdjacentHTML("beforeend",`<div class="${cls}" data-i="${idx}"><div class="emoji">${s[1]}</div><div class="nm">${s[0]}</div><div class="pr">${s[2]?s[2]+" coins":""}</div><div class="tokens"></div></div>`);
+ }
+}
+function newGame(){
+ let n=+document.getElementById("num").value;P=[];pos=[];owner={};turn=0;busy=false;started=true;
+ for(let i=0;i<n;i++){P.push({name:"Player "+(i+1),money:600,props:[],score:0,color:colors[i]});pos.push(0)}
+ document.getElementById("log").innerHTML="";log("🎮 New game! Player 1 starts.");
+ render();status();
+}
+function log(x){document.getElementById("log").innerHTML="<div>"+x+"</div>"+document.getElementById("log").innerHTML}
+function status(){document.getElementById("status").textContent=started?`${P[turn].name}'s turn • 💰 ${P[turn].money} coins`:"Press New Game to start."}
+function render(){
+ document.querySelectorAll(".tokens").forEach(e=>e.innerHTML="");
+ P.forEach((p,i)=>{let e=document.querySelector(`[data-i="${pos[i]}"] .tokens`);if(e)e.innerHTML+=`<span style="color:${p.color};font-size:17px">●</span>`});
+ let d=document.getElementById("players");d.innerHTML="";
+ P.forEach((p,i)=>d.innerHTML+=`<div class="player ${i===turn?"active":""}" style="border-left-color:${p.color}"><b>● ${p.name}</b><div>💰 ${p.money} coins</div><div class="small">🏠 ${p.props.length} properties • ⭐ ${p.score} quiz points</div></div>`);
+ status();
+}
+function roll(){
+ if(!started||busy)return;busy=true;
+ let a=1+Math.floor(Math.random()*6),b=1+Math.floor(Math.random()*6),sum=a+b;lastRoll=sum;
+ document.getElementById("dice").textContent=`${a}+${b}`;
+ let old=pos[turn];pos[turn]=(old+sum)%28;
+ if(old+sum>=28){P[turn].money+=200;log("🚩 Passed START: +200 coins!")}
+ log(`🎲 ${P[turn].name} rolled ${a}+${b} = ${sum}.`);
+ render();setTimeout(land,250);
+}
+function land(){
+ let i=pos[turn],s=S[i];log(`📍 Landed on ${s[1]} ${s[0]}.`);
+ if(s[3]==="quiz"){quiz();return}
+ if(s[3]==="special"){chance();return}
+ if(s[3]==="free"){P[turn].money+=50;log("🌱 Free Veggie: +50 coins!");finish();return}
+ if(s[2]){
+   if(owner[i]===undefined){if(P[turn].money>=s[2])buyBox(i);else{log("💸 Not enough coins to buy it.");finish()}}
+   else if(owner[i]!==turn){let rent=Math.max(25,Math.floor(s[2]*.25));P[turn].money=Math.max(0,P[turn].money-rent);P[owner[i]].money+=rent;log(`💸 Paid ${rent} coins rent to ${P[owner[i]].name}.`);finish()}
+   else {log("🏠 You own this property.");finish()}
+ }else finish();
+}
+function buyBox(i){let s=S[i];show(`<h2>🛒 Buy ${s[1]} ${s[0]}?</h2><p>Price: <b>${s[2]} coins</b></p><button class="green" onclick="buy(${i})">BUY</button><button class="gray" onclick="closeM();finish()">SKIP</button>`)}
+function buy(i){let s=S[i];P[turn].money-=s[2];P[turn].props.push(i);owner[i]=turn;log(`🏠 ${P[turn].name} bought ${s[0]} for ${s[2]} coins.`);closeM();finish()}
+function quiz(){
+ let q=Q[Math.floor(Math.random()*Q.length)],opts=[...q[1]].sort(()=>Math.random()-.5);
+ let h=opts.map(o=>`<button class="ans" onclick="answer(this,${JSON.stringify(o)},${JSON.stringify(q[1][q[2]])})">${o}</button>`).join("");
+ show(`<h2>❓ Veggie Quiz</h2><p><b>${q[0]}</b></p>${h}`);
+}
+function answer(btn,a,c){
+ document.querySelectorAll(".ans").forEach(x=>x.disabled=true);
+ if(a===c){btn.classList.add("correct");P[turn].money+=100;P[turn].score++;log("✅ Correct! +100 coins.");}
+ else{btn.classList.add("wrong");log("❌ The correct answer is "+c+".");}
+ setTimeout(()=>{closeM();finish()},800);
+}
+function chance(){
+ let E=[["🥕 Veggie bonus! +80 coins.",80],["🥦 Healthy choice! +60 coins.",60],["🌧️ Rain damaged the farm. -50 coins.",-50],["🛒 Special market bonus! +100 coins.",100]];
+ let e=E[Math.floor(Math.random()*E.length)];P[turn].money=Math.max(0,P[turn].money+e[1]);log(e[0]);finish();
+}
+function finish(){busy=false;render()}
+function nextTurn(){if(!started||busy)return;turn=(turn+1)%P.length;document.getElementById("dice").textContent="🎲";render()}
+function sayWord(){
+ if(!started)return;let s=S[pos[turn]][0];if(["START","QUIZ","CHANCE","FREE VEGGIE"].includes(s))return;
+ if(window.speechSynthesis){let u=new SpeechSynthesisUtterance(s);u.lang="en-US";speechSynthesis.speak(u)}
+}
+function rules(){show(`<h2>📖 How to Play</h2><p>1. Choose 2–4 players and press <b>New Game</b>.</p><p>2. Press <b>ROLL DICE</b>.</p><p>3. When you land on a vegetable, buy it if you want.</p><p>4. ❓ Quiz = answer in English and get +100 coins.</p><p>5. 🎴 Chance = bonus or penalty.</p><p>6. 🚩 Passing START gives +200 coins.</p><p>7. 🌱 Free Veggie gives +50 coins.</p><button class="pink" onclick="closeM()">LET'S PLAY!</button>`)}
+function show(x){document.getElementById("card").innerHTML=x;document.getElementById("modal").classList.add("show")}
+function closeM(){document.getElementById("modal").classList.remove("show")}
+build();render();
+</script>
+</body>
+</html>
